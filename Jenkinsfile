@@ -1,87 +1,40 @@
-pipeline {
-    agent none
-    tools {
-        maven 'mymaven' 
-    }
-    parameters{
-        string(name:'Env',defaultValue:'Test',description:'version to deploy')
-        booleanParam(name:'executeTests',defaultValue: true,description:'decide to run tc')
-        choice(name:'APPVERSION',choices:['1.1','1.2','1.3'])
+pipeline{
+	agent none
+	tools{
+		maven "mymaven"
+	}
 
-    }
-    environment{
-        DEV_SERVER='ec2-user@172.31.2.225'
-    }
-    stages {
-        stage('Compile') {
-            agent any
-            steps {
-                echo 'Compiling the code'
-                echo "compiling in env: ${params.Env}"
-                sh "mvn compile"
+	parameters{
+		string(name: 'ENV', defaultValue: 'TEST', description: 'Environment to deploy')
+		booleanParam(name: 'executTests', defaultValue: true, description: 'decided to tun tc')
+		choice(name: 'APPVERSION', choices: ['1.1', '1.2', '1.3'], description: '') 
+	}
 
-            }
-        }
-         stage('CodeReview') {
-            agent any
-            steps {
-                echo 'Reviewing the code'
-                echo "Deploying the app version ${params.APPVERSION}"
-                sh "mvn pmd:pmd"
-            }
-            // post{
-            //     always{
-            //         pmd pattern: 'target/pmd.xml'
-            //     }
-            // }
-        }
-         stage('UniTest') {
-           agent {label 'slave1'}
-            when{
-                expression{
-                    params.executeTests == true
-                }
-            }
-            
-            steps {
-                echo 'UnitTest the code'
-                sh "mvn test"
-            }
-            post{
-                always{
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
+	stages{
+		stage('Compile'){
+			agent{label 'slave1'}
+				steps{
+					echo"Compile the code in ${params.ENV}"
+					sh "mvn compile"
+				}
+		
+		}
 
-         stage('Package') {
-            //agent {label 'linux_slave'}
-            agent any
-            steps {
-                script{
-                sshagent(['slave2']) {
-                echo 'Package the code'
-                echo "Deploying the app version ${params.APPVERSION}"
-                sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER}:/home/ec2-user"
-                sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER} 'bash /home/ec2-user/server-script.sh'"
-            }
-        }
-            }
-         }
-          stage('Deploy') {
-            agent any
-            input{
-                message "Select the platform to deploy"
-                ok "Platform selected"
-                parameters{
-                    choice(name:'Platform',choices:['On-prem','EKS','EC2'])
-                }
-            }
-            steps {
-                echo 'Deploy the code'
-                echo "Deploying the app version ${params.APPVERSION}"
-                echo "Deploying on ${params.Platform}"
-            }
-        }
-    }
+	stage('UnitTest'){
+		agent any
+	steps{
+		echo "Test the code"
+		sh "mvn test"
+	}
+}
+
+	stage('Package'){
+		agent {label 'slave1'}
+		steps{
+				echo"Package the code"
+				sh "mvn package"
+		}
+	}
+
+	}
 }
