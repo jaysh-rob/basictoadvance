@@ -26,10 +26,17 @@ pipeline{
 		echo "Test the code"
 		sh "mvn test"
 	}
+
+	post{
+		always{
+			junit 'target/surefire-reports/*.xml'
+		}
+	}
 }
 
 	stage('Package'){
 		agent {label 'slave1'}
+		//agent any 
 		steps{
 				echo"Package the code"
 				sh "mvn package"
