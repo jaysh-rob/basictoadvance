@@ -7,7 +7,7 @@ pipeline {
     environment {
         DEV_SERVER_IP = 'ec2-user@172.31.2.225'
         DEPLOY_SERVER_IP = 'ec2-user@172.31.11.173'
-        IMAGE_NAME = 'devopstrainer/java-mvn-privaterepos'
+        IMAGE_NAME = 'jackdhub/jdk-mvn-addressbook'
     }
 
     parameters {
