@@ -46,7 +46,7 @@ pipeline{
 				BRANCH_NAME == 'update-1'
 			}
 		}
-		agent any
+
 		input{
 			message "Select the version to deploy"
 			ok "The version is selected"
