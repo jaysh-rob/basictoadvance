@@ -19,5 +19,5 @@ else
 fi
 
 cd /home/ec2-user/basictoadvance
-git checkout docker-1
-docker build -t $1:$2 /home/ec2-user/basictoadvance
+sudo git checkout docker-1
+sudo docker build -t $1:$2 /home/ec2-user/basictoadvance
