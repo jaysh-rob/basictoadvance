@@ -44,7 +44,7 @@ pipeline{
         }
 
         stage{
-
+			agent any
             when{
                 expression{
                     BRANCH_NAME == 'update-2'
