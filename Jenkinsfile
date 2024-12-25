@@ -81,10 +81,11 @@ pipeline {
                     sshagent(['slave3']) {
                         withCredentials([usernamePassword(credentialsId: 'docker-hub', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                             echo "Deploy the code ${params.NEWAPP}"
-                            sh "ssh ${DEPLOY_SERVER_IP} sudo yum install docker -y"
-                            sh "ssh ${DEPLOY_SERVER_IP} sudo systemctl start docker"
-                            sh "ssh ${DEPLOY_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
-                            sh "ssh ${DEPLOY_SERVER_IP} sudo docker run -itd -p 9991:8080 ${IMAGE_NAME}:${BUILD_NUMBER}"
+							sh "ssh-keyscan -H ${DEPLOY_SERVER_IP} >> ~/.ssh/known_hosts"
+                            sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_IP} sudo yum install docker -y"
+                            sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_IP} sudo systemctl start docker"
+                            sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
+                            sh "ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_IP} sudo docker run -itd -p 9991:8080 ${IMAGE_NAME}:${BUILD_NUMBER}"
                         }
                     }
                 }
