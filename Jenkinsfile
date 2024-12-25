@@ -53,7 +53,8 @@ pipeline {
                             echo "Package the code ${params.APPVERSION}"
                             sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER_IP}:/home/ec2-user"
                             sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER_IP} 'bash ~/server-script.sh ${IMAGE_NAME} ${BUILD_NUMBER}'"
-                            sh "ssh ${DEV_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
+                            //sh "ssh ${DEV_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
+							sh "ssh ${DEV_SERVER_IP} 'echo ${PASSWORD} | sudo docker login --username ${USERNAME} --password-stdin'"
                             sh "ssh ${DEV_SERVER_IP} sudo docker push ${IMAGE_NAME}:${BUILD_NUMBER}"
                         }
                     }
