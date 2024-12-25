@@ -16,6 +16,7 @@ pipeline{
 
     stages{
         stage('compile'){
+			agent any
             steps{
                 echo "This is the compile stage ${params.ENV}"
                 sh 'mvn compile'
@@ -24,6 +25,7 @@ pipeline{
         }
 
         stage('Test'){
+			 agent {label 'slave1'}
 
              when{
                 expression{
@@ -59,7 +61,7 @@ pipeline{
 
             steps{
                 script{
-                    sshagent([PACKAGE_SERVER]){
+                    sshagent(['slave2']){
                 echo "This is the package stage ${params.APPVERSION}"
                 sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER_IP}:/home/ec2-user"
                 sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER_IP} 'bash ~/server-script.sh"
