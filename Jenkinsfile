@@ -46,7 +46,7 @@ pipeline{
             agent any
             when{
                 expression{
-                    return BRANCH_NAME == 'update-2'
+                    return env.BRANCH_NAME == 'update-2'
                 }
             }
             input {
