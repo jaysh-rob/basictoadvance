@@ -49,7 +49,9 @@ pipeline{
                 expression{
                     BRANCH_NAME == 'update-2'
                 }
+			}
 
+				agent any
                 input {
                     message "Select the APP Version"
                     ok "Application Version selected"
@@ -57,7 +59,7 @@ pipeline{
                     choice(name: 'NEWAPP', choices: ['1.1', '2.2', '3.3'])
                 }
             }
-            }
+    
 
             steps{
                 script{
