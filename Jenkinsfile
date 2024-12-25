@@ -1,68 +1,90 @@
-pipeline{
+pipeline {
     agent none
-    tools{
-        maven 'mymaven'
+    tools {
+        maven "mymaven"
     }
 
-    environment{
-        DEV_SERVER_IP='ec2-user@172.31.2.225'
+    environment {
+        DEV_SERVER_IP = 'ec2-user@172.31.2.225'
+        DEPLOY_SERVER_IP = 'ec2-user@172.31.11.173'
+        IMAGE_NAME = 'devopstrainer/java-mvn-privaterepos'
     }
 
     parameters {
-        string(name: 'ENV', defaultValue: 'TEST', description: 'this is the environment to be set')
-        booleanParam(name: 'Test', defaultValue: true, description: 'Skip the Test stage')
-        choice(name: 'APPVERSION', choices: ['1.5', '2.5', '3.5'])
+        string(name: 'Env', defaultValue: 'Test', description: 'Environment to deploy')
+        booleanParam(name: 'executeTests', defaultValue: true, description: 'Decide to run tests')
+        choice(name: 'APPVERSION', choices: ['1.1', '1.2', '1.3'])
     }
 
-    stages{
-        stage('compile'){
+    stages {
+        stage('Compile') { //slave1 --- /tmp/workspace
             agent any
-            steps{
-                echo "This is the compile stage ${params.ENV}"
-                sh 'mvn compile'
+            steps {
+                echo "Compile the code in ${params.Env}"
+                sh "mvn compile"
             }
         }
 
-        stage('Test'){
-            agent {label 'slave1'}
-
-            when{
-                expression{
-                    return params.Test == true
+        stage('UnitTest') { //slave1 -- /tmp/workspace
+			agent any
+            when {
+                expression {
+                    params.executeTests == true
                 }
             }
-            steps{
-                echo "This is the test stage"
-                sh 'mvn test'
+            // agent any
+            steps {
+                echo "Test the code"
+                sh "mvn test"
             }
-            post{
-                always{
+            post {
+                always {
                     junit 'target/surefire-reports/*.xml'
                 }
             }
         }
 
-        stage('Package'){
+        stage('Package+push the image to registry') { //slave2 -- /var/lib/jenkins/workspace
             agent any
-            when{
-                expression{
-                    return env.BRANCH_NAME == 'update-2'
+            steps {
+                script {
+                    sshagent(['slave2']) {
+                        withCredentials([usernamePassword(credentialsId: 'docker-hub', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                            echo "Package the code ${params.APPVERSION}"
+                            sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER_IP}:/home/ec2-user"
+                            sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER_IP} 'bash ~/server-script.sh ${IMAGE_NAME} ${BUILD_NUMBER}'"
+                            sh "ssh ${DEV_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
+                            sh "ssh ${DEV_SERVER_IP} sudo docker push ${IMAGE_NAME}:${BUILD_NUMBER}"
+                        }
+                    }
                 }
             }
-            input {
-                message "Select the APP Version"
-                ok "Application Version selected"
-                parameters {
-                    choice(name: 'NEWAPP', choices: ['1.1', '2.2', '3.3'])
-                }
-            }
+        }
 
-            steps{
-                script{
-                    sshagent(['slave2']){
-                        echo "This is the package stage ${params.APPVERSION}"
-                        sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER_IP}:/home/ec2-user"
-                        sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER_IP} 'bash ~/server-script.sh'"
+        stage('Deploy') { //slave2 -- /var/lib/jenkins/workspace
+            // when {
+            //     expression {
+            //         BRANCH_NAME == 'docker-1'
+            //     }
+            // }
+            agent any
+            // input {
+            //     message "Select the version to deploy"
+            //     ok "Version selected"
+            //     parameters {
+            //         choice(name: 'NEWAPP', choices: ['1.2', '2.1', '3.1'])
+            //     }
+            // }
+            steps {
+                script {
+                    sshagent(['slave3']) {
+                        withCredentials([usernamePassword(credentialsId: 'docker-hub', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                            echo "Deploy the code ${params.NEWAPP}"
+                            sh "ssh ${DEPLOY_SERVER_IP} sudo yum install docker -y"
+                            sh "ssh ${DEPLOY_SERVER_IP} sudo systemctl start docker"
+                            sh "ssh ${DEPLOY_SERVER_IP} sudo docker login -u ${USERNAME} -p ${PASSWORD}"
+                            sh "ssh ${DEPLOY_SERVER_IP} sudo docker run -itd -p 9991:8080 ${IMAGE_NAME}:${BUILD_NUMBER}"
+                        }
                     }
                 }
             }
