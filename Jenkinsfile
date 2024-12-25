@@ -1,65 +1,71 @@
 pipeline{
-	agent none
-	tools{
-		maven "mymaven"
-	}
+    agent none
+    tools{
+        maven 'mymaven'
+    }
 
-	parameters{
-		string(name: 'ENV', defaultValue: 'TEST', description: 'Environment to deploy')
-		booleanParam(name: 'executTests', defaultValue: true, description: 'decided to tun tc')
-		choice(name: 'APPVERSION', choices: ['1.1', '1.2', '1.3']) 
-	}
+    environment{
+        DEV_SERVER_IP='ec2-user@172.31.2.225'
+    }
 
-	stages{
-		stage('Compile'){
-			agent{label 'slave1'}
-				steps{
-					echo"Compile the code in ${params.ENV}"
-					sh "mvn compile"
-				}
-		
-		}
+    parameters {
+        string(name: 'ENV', defaultValue: 'TEST', description: 'this is the envirnoment to be set')
+        booleanParam(name: 'Test', defaultValue: true, description: 'SKip the Test stage')
+        choice(name: 'APPVERSION', choices: ['1.5', '2.5', '3.5'])
+    }
 
-	stage('UnitTest'){
-		when{
-			expression{
-			params.executTests == true
-			}
-		}
-		agent any
-	steps{
-		echo "Test the code"
-		sh "mvn test"
-	}
+    stages{
+        stage('compile'){
+            steps{
+                echo "This is the compile stage ${params.ENV}"
+                sh 'mvn compile'
+            }
+            
+        }
 
-	post{
-		always{
-			junit 'target/surefire-reports/*.xml'
-		}
-	}
-}
+        stage('Test'){
 
-	stage('Package'){
-		//agent {label 'slave1'}
-		when{
-			expression{
-				BRANCH_NAME == 'update-1'
-			}
-		}
-		agent any
-		input{
-			message "Select the version to deploy"
-			ok "The version is selected"
-			parameters{
-				choice(name: 'NEWAPP', choices: ['1.2', '2.1', '3.1']) 
-			}
-		}
-		//agent any 
-		steps{
-				echo"Package the code ${params.APPVERSION}"
-				sh "mvn package"
-		}
-	}
+             when{
+                expression{
+                    ${params.Test} == true
+                }
+            }
+                steps{
+                    echo "This is the test stage"
+                    sh 'mvn test'
+                }
+        post{
+            always{
+                junit 'target/surefire-reports/*.xml'
+            }
+        }
+        }
 
-	}
+        stage{
+
+            when{
+                expression{
+                    BRANCH_NAME == 'update-2'
+                }
+
+                input {
+                    message "Select the APP Version"
+                    ok "Application Version selected"
+                    parameters {
+                    choice(name: 'NEWAPP', choices: ['1.1', '2.2', '3.3'])
+                }
+            }
+            }
+
+            steps{
+                script{
+                    sshagent([PACKAGE_SERVER]){
+                echo "This is the package stage ${params.APPVERSION}"
+                sh "scp -o StrictHostKeyChecking=no server-script.sh ${DEV_SERVER_IP}:/home/ec2-user"
+                sh "ssh -o StrictHostKeyChecking=no ${DEV_SERVER_IP} 'bash ~/server-script.sh"
+                    }
+                }
+            }
+        }
+    }
 }
